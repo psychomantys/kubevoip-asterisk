@@ -14,12 +14,12 @@ RUN ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --with-pjpr
  && menuselect/menuselect --disable-all \
     --enable CORE-SOUNDS-EN-ALAW \
     --enable CORE-SOUNDS-EN-ULAW \
-    --enable app_dial --enable app_echo --enable app_playback --enable app_voicemail_odbc \
-    --enable chan_pjsip --enable codec_alaw --enable codec_ulaw --enable format_pcm --enable format_wav \
+    --enable app_audiosocket --enable app_dial --enable app_echo --enable app_playback --enable app_voicemail_odbc \
+    --enable chan_audiosocket --enable chan_pjsip --enable codec_alaw --enable codec_ulaw --enable format_pcm --enable format_wav \
     --enable pbx_config --enable res_pjproject --enable res_pjsip --enable res_pjsip_authenticator_digest \
     --enable res_pjsip_endpoint_identifier_ip --enable res_pjsip_endpoint_identifier_user --enable res_pjsip_header_funcs --enable res_pjsip_mwi --enable res_pjsip_outbound_publish \
     --enable res_pjsip_pubsub --enable res_pjsip_registrar --enable res_pjsip_sdp_rtp --enable res_adsi --enable res_config_odbc --enable res_odbc --enable res_rtp_asterisk --enable res_smdi \
-    --enable res_geolocation --enable res_statsd menuselect.makeopts \
+    --enable res_audiosocket --enable res_geolocation --enable res_statsd menuselect.makeopts \
  && make -j"$(nproc)" && make DESTDIR=/out install
 
 FROM debian:bookworm-slim
