@@ -1,0 +1,100 @@
+name: Build
+on:
+  push:
+    tags: ["v*.*.*"]
+permissions:
+  attestations: write
+  contents: read
+  id-token: write
+  packages: write
+env:
+  IMAGE_NAME: kubevoip-asterisk
+jobs:
+  meta:
+    runs-on: ubuntu-latest
+    outputs:
+      image: ${{ steps.meta.outputs.image }}
+    steps:
+      - id: meta
+        run: echo "image=ghcr.io/$(echo '${{ github.repository_owner }}' | tr '[:upper:]' '[:lower:]')/${IMAGE_NAME}" >> "$GITHUB_OUTPUT"
+
+  build-images:
+    name: build ${{ matrix.image }} (${{ matrix.platform }})
+    needs: meta
+    strategy:
+      matrix:
+        include:
+          - image: kubevoip-asterisk
+            file: Dockerfile
+            runner: ubuntu-24.04
+            platform: linux/amd64
+            arch: amd64
+          - image: kubevoip-asterisk
+            file: Dockerfile
+            runner: ubuntu-24.04-arm
+            platform: linux/arm64
+            arch: arm64
+    runs-on: ${{ matrix.runner }}
+    steps:
+      - uses: actions/checkout@v6
+      - uses: docker/setup-buildx-action@v4.1.0
+      - uses: docker/login-action@v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - id: build
+        uses: docker/build-push-action@v7.2.0
+        with:
+          context: .
+          file: ${{ matrix.file }}
+          platforms: ${{ matrix.platform }}
+          push: true
+          tags: ${{ needs.meta.outputs.image }}:${{ github.ref_name }}-${{ matrix.arch }}
+          cache-from: type=gha,scope=build-${{ matrix.image }}-${{ matrix.arch }}
+          cache-to: type=gha,scope=build-${{ matrix.image }}-${{ matrix.arch }},mode=max
+      - name: Attest architecture image
+        uses: actions/attest-build-provenance@v4.1.0
+        with:
+          subject-name: ${{ needs.meta.outputs.image }}
+          subject-digest: ${{ steps.build.outputs.digest }}
+          push-to-registry: true
+      - name: Verify Asterisk image contents
+        env:
+          IMAGE: ${{ needs.meta.outputs.image }}
+        run: |
+          docker pull "${IMAGE}:${GITHUB_REF_NAME}-${{ matrix.arch }}"
+          docker run --rm --entrypoint asterisk "${IMAGE}:${GITHUB_REF_NAME}-${{ matrix.arch }}" -V
+          docker run --rm --entrypoint sh "${IMAGE}:${GITHUB_REF_NAME}-${{ matrix.arch }}" -c '
+          test -f /usr/lib/asterisk/modules/app_audiosocket.so
+          test -f /usr/lib/asterisk/modules/chan_audiosocket.so
+          test -f /usr/lib/asterisk/modules/res_audiosocket.so
+          '
+
+  publish:
+    needs: [meta, build-images]
+    runs-on: ubuntu-latest
+    steps:
+      - uses: docker/setup-buildx-action@v4.1.0
+      - uses: docker/login-action@v4.2.0
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Create multi-architecture image manifests
+        id: manifest
+        env:
+          IMAGE: ${{ needs.meta.outputs.image }}
+        run: |
+          docker buildx imagetools create \
+            --tag "${IMAGE}:${GITHUB_REF_NAME}" \
+            "${IMAGE}:${GITHUB_REF_NAME}-amd64" \
+            "${IMAGE}:${GITHUB_REF_NAME}-arm64"
+          digest="$(docker buildx imagetools inspect "${IMAGE}:${GITHUB_REF_NAME}" --format '{{ .Manifest.Digest }}')"
+          echo "digest=${digest}" >> "$GITHUB_OUTPUT"
+      - name: Attest multi-architecture image
+        uses: actions/attest-build-provenance@v4.1.0
+        with:
+          subject-name: ${{ needs.meta.outputs.image }}
+          subject-digest: ${{ steps.manifest.outputs.digest }}
+          push-to-registry: true
