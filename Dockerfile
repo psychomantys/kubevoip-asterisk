@@ -14,7 +14,7 @@ RUN ./configure --prefix=/usr --sysconfdir=/etc --localstatedir=/var --with-pjpr
  && menuselect/menuselect --disable-all \
     --enable CORE-SOUNDS-EN-ALAW \
     --enable CORE-SOUNDS-EN-ULAW \
-    --enable app_audiosocket --enable app_dial --enable app_echo --enable app_playback --enable app_voicemail_odbc \
+    --enable app_audiosocket --enable app_dial --enable app_echo --enable app_exec --enable app_playback --enable app_voicemail_odbc \
     --enable chan_audiosocket --enable chan_pjsip --enable codec_alaw --enable codec_ulaw --enable format_pcm --enable format_wav \
     --enable func_callerid --enable func_curl --enable func_cut --enable func_env --enable func_json --enable func_uuid --enable pbx_config --enable res_pjproject --enable res_pjsip --enable res_pjsip_authenticator_digest \
     --enable res_pjsip_endpoint_identifier_ip --enable res_pjsip_endpoint_identifier_user --enable res_pjsip_header_funcs --enable res_pjsip_mwi --enable res_pjsip_outbound_publish \
